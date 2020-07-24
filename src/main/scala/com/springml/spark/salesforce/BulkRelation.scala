@@ -113,7 +113,7 @@ case class BulkRelation(
         .option("quote", "\"")
         .option("escape", "\"")
         .option("multiLine", true)
-        .csv(csvData)
+        .csv(csvData).repartition(completedBatchInfoIds.size)
     } else {
       bulkAPI.closeJob(jobId)
       throw new Exception("Job completion timeout")
