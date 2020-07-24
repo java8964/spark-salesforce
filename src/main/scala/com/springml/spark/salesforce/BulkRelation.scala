@@ -35,7 +35,8 @@ case class BulkRelation(
     sqlContext: SQLContext,
     inferSchema: Boolean,
     timeout: Long,
-    maxCharsPerColumn: Int) extends BaseRelation with TableScan {
+    maxCharsPerColumn: Int,
+    maxColumns: Int) extends BaseRelation with TableScan {
 
   import sqlContext.sparkSession.implicits._
 
@@ -68,8 +69,7 @@ case class BulkRelation(
       val fetchBatchInfo = (batchInfoId: String) => {
         val resultIds = bulkAPI.getBatchResultIds(jobId, batchInfoId)
 
-        val result = bulkAPI.getBatchResult(jobId, batchInfoId, resultIds.get(resultIds.size() - 1))
-
+        //val result = bulkAPI.getBatchResult(jobId, batchInfoId, resultIds.get(resultIds.size() - 1))
         // Use Csv parser to split CSV by rows to cover edge cases (ex. escaped characters, new line within string, etc)
         def splitCsvByRows(csvString: String): Seq[String] = {
           // The CsvParser interface only interacts with IO, so StringReader and StringWriter
@@ -79,6 +79,7 @@ case class BulkRelation(
           parserSettings.setLineSeparatorDetectionEnabled(true)
           parserSettings.getFormat.setNormalizedNewline(' ')
           parserSettings.setMaxCharsPerColumn(maxCharsPerColumn)
+          parserSettings.setMaxColumns(maxColumns)
 
           val readerParser = new CsvParser(parserSettings)
           val parsedInput = readerParser.parseAll(inputReader).asScala
@@ -91,11 +92,12 @@ case class BulkRelation(
 
           val writer = new CsvWriter(outputWriter, writerSettings)
           parsedInput.foreach { writer.writeRow(_) }
-
           outputWriter.toString.lines.toList
         }
-
-        splitCsvByRows(result)
+        for {
+          resultId <- resultIds.asScala;
+          line <- splitCsvByRows(bulkAPI.getBatchResult(jobId, batchInfoId, resultId))
+        } yield line
       }
 
       val csvData = sqlContext

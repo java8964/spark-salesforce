@@ -197,6 +197,13 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider with Cr
       case e: Exception => throw new Exception("maxCharsPerColumn must be a valid integer")
     }
 
+    val maxColumnsStr = parameters.getOrElse("maxColumns", "512")
+    val maxColumns = try {
+      maxColumnsStr.toInt
+    } catch {
+      case e: Exception => throw new Exception("maxColumns must be a valid integer")
+    }
+
     val timeoutStr = parameters.getOrElse("timeout", "600000")
     val timeout = try {
       timeoutStr.toLong
@@ -236,7 +243,8 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider with Cr
       sqlContext,
       inferSchemaFlag,
       timeout,
-      maxCharsPerColumn
+      maxCharsPerColumn,
+      maxColumns
     )
   }
 
